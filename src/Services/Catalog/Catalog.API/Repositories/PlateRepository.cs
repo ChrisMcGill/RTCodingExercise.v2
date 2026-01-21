@@ -11,15 +11,18 @@ public class PlateRepository : IPlateRepository
     private readonly ApplicationDbContext _context;
     private readonly ILogger<PlateRepository> _logger;
     private readonly IPlateMatchingService _matchingService;
+    private readonly IAuditRepository _auditRepository;
 
     public PlateRepository(
         ApplicationDbContext context, 
         ILogger<PlateRepository> logger,
-        IPlateMatchingService matchingService)
+        IPlateMatchingService matchingService,
+        IAuditRepository auditRepository)
     {
         _context = context;
         _logger = logger;
         _matchingService = matchingService;
+        _auditRepository = auditRepository;
     }
 
     public async Task<IEnumerable<Plate>> GetAllAsync()
@@ -176,13 +179,41 @@ public class PlateRepository : IPlateRepository
     public async Task<Plate> AddAsync(Plate plate)
     {
         await _context.Plates.AddAsync(plate);
+        // if wanted to log creation 
+        //await _auditRepository.AddLogAsync(plate.Id, "Created", $"Plate {plate.Registration} created with price £{plate.SalePrice}");
         return plate;
     }
 
-    public Task UpdateAsync(Plate plate)
+    public async Task UpdateAsync(Plate plate)
     {
-        _context.Entry(plate).State = EntityState.Modified;
-        return Task.CompletedTask;
+        var entry = _context.Entry(plate);
+
+        // Status changes check
+        if (entry.Property(p => p.Status).IsModified)
+        {
+            var oldStatus = entry.Property(p => p.Status).OriginalValue;
+            var newStatus = entry.Property(p => p.Status).CurrentValue;
+
+            if (!object.Equals(oldStatus, newStatus))
+            {
+                await _auditRepository.AddLogAsync(plate.Id, "StatusChange", $"Status changed from {oldStatus} to {newStatus}");
+            }
+        }
+
+        // Price change check
+        if (entry.Property(p => p.SalePrice).IsModified)
+        {
+            var oldPrice = entry.Property(p => p.SalePrice).OriginalValue;
+            var newPrice = entry.Property(p => p.SalePrice).CurrentValue;
+
+            if (!object.Equals(oldPrice, newPrice))
+            {
+                await _auditRepository.AddLogAsync(plate.Id, "PriceChange",
+                    $"Price changed from £{oldPrice} to £{newPrice}");
+            }
+        }
+
+        entry.State = EntityState.Modified;
     }
 
     public async Task DeleteAsync(Guid id)
@@ -191,6 +222,8 @@ public class PlateRepository : IPlateRepository
         if (plate != null)
         {
             _context.Plates.Remove(plate);
+            // unsure if stored after deletion
+            //await _auditRepository.AddLogAsync(plate.Id, "Deleted", $"Plate {plate.Registration} deleted at {DateTime.UtcNow}");
         }
     }
 

@@ -1,4 +1,4 @@
-﻿namespace Catalog.API.Data
+namespace Catalog.API.Data
 {
     public class ApplicationDbContext : DbContext
     {
@@ -8,6 +8,8 @@
         }
 
         public DbSet<Plate> Plates { get; set; }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

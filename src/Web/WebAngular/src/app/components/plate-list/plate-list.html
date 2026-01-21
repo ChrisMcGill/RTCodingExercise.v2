@@ -128,10 +128,13 @@
         <div class="card-body">
           <p class="mb-1"><strong>Sale Price:</strong> £{{ plate.salePrice | number:'1.2-2' }}</p>
           <p class="mb-1">
-            <strong>Status:</strong> 
+            <strong>Status:</strong>
             <span class="badge" [ngClass]="getStatusBadgeClass(plate.status)">
               {{ getStatusText(plate.status) }}
             </span>
+            <button class="btn btn-sm btn-info w-100 mt-2 mb-1" (click)="viewHistory(plate)">
+              <i class="bi bi-clock-history"></i> View/Download Audit history
+            </button>
           </p>
 
           <!-- For Sale Actions -->
@@ -204,12 +207,12 @@
           <label class="form-label"><strong>Registration:</strong></label>
           <p>{{ selectedPlate.registration }}</p>
         </div>
-        
+
         <div class="mb-3">
           <label class="form-label"><strong>Original Price:</strong></label>
           <p>£{{ selectedPlate.salePrice | number:'1.2-2' }}</p>
         </div>
-        
+
         <div class="mb-3">
           <label for="promoCode" class="form-label">Promo Code (Optional)</label>
           <select class="form-select" id="promoCode" [(ngModel)]="selectedPromoCode" (change)="onPromoCodeChange()">
@@ -218,7 +221,7 @@
             <option value="PERCENTOFF">PERCENTOFF (15% off)</option>
           </select>
         </div>
-        
+
         <div class="alert alert-info">
           <strong>Final Price:</strong> £{{ calculatedPrice | number:'1.2-2' }}
         </div>

@@ -7,6 +7,7 @@ import { catchError, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 import { formatRegistration } from '../../utils/plate-helpers';
+import { AuditService } from '../../services/audit';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -23,7 +24,7 @@ export class PlateListComponent implements OnInit, AfterViewInit {
   loading = true;
   error: string | null = null;
   success: string | null = null;
-  
+
   private profitChart: Chart | null = null;
 
   // Pagination
@@ -50,7 +51,7 @@ export class PlateListComponent implements OnInit, AfterViewInit {
   // Enum for template
   PlateStatus = PlateStatus;
 
-  constructor(private catalogService: Catalog, private cdr: ChangeDetectorRef) { }
+  constructor(private catalogService: Catalog, private cdr: ChangeDetectorRef, private auditService: AuditService) { }
 
   // Make the utility function accessible to the template
   formatRegistration = formatRegistration;
@@ -176,13 +177,13 @@ export class PlateListComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: (data) => {
         this.statistics = data;
-        
+
         // Destroy existing chart if it exists
         if (this.profitChart) {
           this.profitChart.destroy();
           this.profitChart = null;
         }
-        
+
         // Reinitialize chart with new data
         setTimeout(() => this.initializeChart(), 100);
       },
@@ -303,5 +304,31 @@ export class PlateListComponent implements OnInit, AfterViewInit {
       case PlateStatus.Sold: return 'Sold';
       default: return 'Unknown';
     }
+  }
+
+  viewHistory(plate: Plate): void {
+    this.auditService.getHistory(plate.id).subscribe({
+      next: (logs) => {
+        let message = `Audit history for ${plate.registration}:\n\n`;
+
+        if (logs.length === 0) {
+          message += "No history found.";
+        } else {
+          logs.forEach(l => {
+            const date = new Date(l.timestamp).toLocaleString();
+            message += `[${date}] ${l.action}: ${l.details}\n\n`;
+          });
+        }
+
+        message += "\n\nPress 'OK' to download as a JSON file, otherwise press 'Cancel' to exit this log";
+        if (confirm(message)) {
+          this.auditService.exportJson(plate.id);
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load history', err);
+        this.error = 'Could not load audit history.';
+      }
+    });
   }
 }
